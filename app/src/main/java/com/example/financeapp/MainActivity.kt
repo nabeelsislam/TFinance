@@ -158,23 +158,6 @@ fun HomeScreen(
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            Button(
-                onClick = { isImageVisible = !isImageVisible },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isImageVisible) "Hide Bitcoin Freddy" else "Show Bitcoin Freddy")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (isImageVisible) {
-                Image(
-                    painter = painterResource(id = R.drawable.bitcoinfreddy),
-                    contentDescription = "Bitcoin Freddy",
-                    modifier = Modifier.size(200.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
 
             Button(
                 onClick = { /* TODO: Handle View Accounts */ },
