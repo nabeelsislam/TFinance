@@ -1,10 +1,10 @@
 package com.example.financeapp
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -29,11 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.financeapp.ui.theme.FinanceAppTheme
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +61,10 @@ fun LoginScreen(
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -91,8 +95,11 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
-                label = { Text("Username or Email") },
+                onValueChange = {
+                    username = it
+                    errorMessage = null
+                },
+                label = { Text("Username") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -101,20 +108,67 @@ fun LoginScreen(
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    errorMessage = null
+                },
                 label = { Text("Password") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
 
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
 
-            Button(
-                onClick = onLoginClick,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Login")
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Button(
+                    onClick = {
+                        val inputUsername = username.trim()
+                        val inputPassword = password.trim()
+
+                        if (inputUsername.isEmpty() || inputPassword.isEmpty()) {
+                            errorMessage = "Please enter both username and password"
+                            return@Button
+                        }
+
+                        isLoading = true
+                        errorMessage = null
+
+                        // Check Firestore "login" collection for matching "Username" and "Password"
+                        val db = FirebaseFirestore.getInstance()
+                        db.collection("login")
+                            .whereEqualTo("Username", inputUsername)
+                            .whereEqualTo("Password", inputPassword)
+                            .get()
+                            .addOnSuccessListener { querySnapshot ->
+                                isLoading = false
+                                if (!querySnapshot.isEmpty) {
+                                    Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
+                                    onLoginClick()
+                                } else {
+                                    errorMessage = "Invalid Username or Password"
+                                }
+                            }
+                            .addOnFailureListener { exception ->
+                                isLoading = false
+                                errorMessage = "Database Error: ${exception.localizedMessage}"
+                            }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Login")
+                }
             }
         }
     }
@@ -126,8 +180,6 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     onLogout: () -> Unit = {}
 ) {
-    var isImageVisible by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -157,7 +209,6 @@ fun HomeScreen(
             verticalArrangement = Arrangement.Top
         ) {
             Spacer(modifier = Modifier.height(16.dp))
-
 
             Button(
                 onClick = { /* TODO: Handle View Accounts */ },
