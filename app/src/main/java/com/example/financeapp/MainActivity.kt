@@ -40,13 +40,99 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FinanceAppTheme(dynamicColor = false) {
-                var isLoggedIn by remember { mutableStateOf(false) }
 
-                if (isLoggedIn) {
-                    HomeScreen(onLogout = { isLoggedIn = false })
+            // Tracks whether Dark Mode is enabled.
+            // MainActivity owns this state so the entire app can use it.
+            var isDarkMode by remember {
+                mutableStateOf(false)
+            }
+
+            //Stores the currency selected by the user
+            //MainActivity manages it so it survives the screen navigation
+            var selectedCurrency by remember{
+                mutableStateOf("USD")
+            }
+
+            // The theme reads the current Dark Mode value.
+            FinanceAppTheme(
+                darkTheme = isDarkMode,
+                dynamicColor = false
+            ) {
+
+                // Tracks whether the user is logged in.
+                var isLoggedIn by remember {
+                    mutableStateOf(false)
+                }
+
+                // Tracks whether the Settings screen is open.
+                var isSettingsOpen by remember {
+                    mutableStateOf(false)
+                }
+
+                //Tracks whether the About TFinance page is open
+                var isAboutOpen by remember{
+                    mutableStateOf(false)
+                }
+
+
+                if (!isLoggedIn) {
+
+                    // Show Login when the user is logged out.
+                    LoginScreen(
+                        onLoginClick = {
+                            isLoggedIn = true
+                        }
+                    )
+
+                } else if (isAboutOpen) {
+
+                    // Display the About TFinance page.
+                    AboutScreen(
+                        onBackClick = {
+                            isAboutOpen = false
+                        }
+                    )
+
+                } else if (isSettingsOpen) {
+
+                    SettingsScreen(
+                        onBackClick = {
+                            isSettingsOpen = false
+                        },
+
+                        // Existing Dark Mode functionality.
+                        isDarkMode = isDarkMode,
+                        onDarkModeChange = { newValue ->
+                            isDarkMode = newValue
+                        },
+
+                        // Existing About TFinance navigation.
+                        onAboutClick = {
+                            isAboutOpen = true
+                        },
+
+                        // Sends the selected currency to Settings.
+                        selectedCurrency = selectedCurrency,
+
+                        // Receives the user's new currency selection.
+                        onCurrencyChange = { newCurrency ->
+                            selectedCurrency = newCurrency
+                        }
+                    )
+
                 } else {
-                    LoginScreen(onLoginClick = { isLoggedIn = true })
+
+                    // Display Home when logged in.
+                    HomeScreen(
+                        onLogout = {
+                            isLoggedIn = false
+                            isSettingsOpen = false
+                            isAboutOpen = false
+                        },
+                        onSettingsClick = {
+                            isSettingsOpen = true
+                        }
+                    )
                 }
             }
         }
@@ -178,7 +264,9 @@ fun LoginScreen(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    //
+    onSettingsClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -247,7 +335,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { /* TODO: Handle Settings */ },
+                onClick = onSettingsClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Settings")
@@ -255,6 +343,8 @@ fun HomeScreen(
         }
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
