@@ -15,31 +15,43 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Switch
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.statusBarsPadding
 
 // Displays the application's Settings screen.
 @Composable
 fun SettingsScreen(
-    onBackClick: () -> Unit
-) {
-    //Track whether the Dark Mode Switch is enabled
-    var isDarkMode by remember{
-        mutableStateOf(false)
-    }
-    //Main Container for the settings page
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+    onBackClick: () -> Unit,
 
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Top
+    // Receives the Dark Mode state from MainActivity.
+    isDarkMode: Boolean,
+
+    // Sends switch changes back to MainActivity.
+    onDarkModeChange: (Boolean) -> Unit
+) {
+    //Surface providers  the themed background and
+    //the corresponding foreground content colors
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground
     ) {
+        //Main Container for the settings page
+        Column(
+            modifier = Modifier
+                //Makes the Colum fill the available screen
+                .fillMaxSize()
+
+                // Moves the content below the Android status bar.
+                .statusBarsPadding()
+
+                //Adds spacing around the content
+                .padding(16.dp),
+
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.Top
+        ) {
 
         //Setings Page Heading
         Text(
@@ -54,7 +66,7 @@ fun SettingsScreen(
 
         //Preferences Section
         Text(
-            text = "PREFERNCES",
+            text = "PREFERENCES",
             style = MaterialTheme.typography.titleMedium
         )
         // Places the label and switch horizontally.
@@ -70,11 +82,11 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             // Switch controlled by our state variable.
+            // Displays the current state from MainActivity.
+            // Calls the parent callback when the user changes the switch.
             Switch(
                 checked = isDarkMode,
-                onCheckedChange = { newValue ->
-                    isDarkMode = newValue
-                }
+                onCheckedChange = onDarkModeChange
             )
         }
 
@@ -112,12 +124,16 @@ fun SettingsScreen(
             text = "About TFinance",
             modifier = Modifier.padding(vertical = 8.dp)
         )
-        //Returns to the HomeScreen
-        Button(
-            onClick = onBackClick,
-            modifier = Modifier.fillMaxWidth().padding(top=24.dp)
-        ){
-            Text("Back")
-        }
-    }
-}
+            // Returns to the HomeScreen.
+            Button(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 24.dp)
+            ) {
+                Text("Back")
+            }
+
+        } // Closes Column
+    }     // Closes Surface
+}         // Closes SettingsScreen function

@@ -40,21 +40,50 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FinanceAppTheme(dynamicColor = false) {
-                //Tracks whether the user is logged in
-                var isLoggedIn by remember { mutableStateOf(false) }
 
-                //Tracks whether the settings screen is open
-                var isSettingsOpen by remember {mutableStateOf(false) }
+            // Tracks whether Dark Mode is enabled.
+            // MainActivity owns this state so the entire app can use it.
+            var isDarkMode by remember {
+                mutableStateOf(false)
+            }
+
+            // The theme reads the current Dark Mode value.
+            FinanceAppTheme(
+                darkTheme = isDarkMode,
+                dynamicColor = false
+            ) {
+
+                // Tracks whether the user is logged in.
+                var isLoggedIn by remember {
+                    mutableStateOf(false)
+                }
+
+                // Tracks whether the Settings screen is open.
+                var isSettingsOpen by remember {
+                    mutableStateOf(false)
+                }
 
 
                 if (!isLoggedIn) {
                     //Show login when the user is not logged in
                     LoginScreen(onLoginClick = { isLoggedIn = true })
                 }
-                else if(isSettingsOpen){
-                    //Show Settings when the user opens is
-                    SettingsScreen(onBackClick = {isSettingsOpen = false})
+                else if (isSettingsOpen) {
+
+                    // Display the Settings screen and pass the Dark Mode state.
+                    SettingsScreen(
+                        onBackClick = {
+                            isSettingsOpen = false
+                        },
+
+                        // Sends the current state to the Settings screen.
+                        isDarkMode = isDarkMode,
+
+                        // Receives changes made to the switch.
+                        onDarkModeChange = { newValue ->
+                            isDarkMode = newValue
+                        }
+                    )
                 } else {
                     HomeScreen(onLogout = { isSettingsOpen = false
                         isLoggedIn = false },
