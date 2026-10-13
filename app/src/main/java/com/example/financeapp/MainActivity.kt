@@ -47,6 +47,12 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
 
+            //Stores the currency selected by the user
+            //MainActivity manages it so it survives the screen navigation
+            var selectedCurrency by remember{
+                mutableStateOf("USD")
+            }
+
             // The theme reads the current Dark Mode value.
             FinanceAppTheme(
                 darkTheme = isDarkMode,
@@ -63,33 +69,70 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
+                //Tracks whether the About TFinance page is open
+                var isAboutOpen by remember{
+                    mutableStateOf(false)
+                }
+
 
                 if (!isLoggedIn) {
-                    //Show login when the user is not logged in
-                    LoginScreen(onLoginClick = { isLoggedIn = true })
-                }
-                else if (isSettingsOpen) {
 
-                    // Display the Settings screen and pass the Dark Mode state.
+                    // Show Login when the user is logged out.
+                    LoginScreen(
+                        onLoginClick = {
+                            isLoggedIn = true
+                        }
+                    )
+
+                } else if (isAboutOpen) {
+
+                    // Display the About TFinance page.
+                    AboutScreen(
+                        onBackClick = {
+                            isAboutOpen = false
+                        }
+                    )
+
+                } else if (isSettingsOpen) {
+
                     SettingsScreen(
                         onBackClick = {
                             isSettingsOpen = false
                         },
 
-                        // Sends the current state to the Settings screen.
+                        // Existing Dark Mode functionality.
                         isDarkMode = isDarkMode,
-
-                        // Receives changes made to the switch.
                         onDarkModeChange = { newValue ->
                             isDarkMode = newValue
+                        },
+
+                        // Existing About TFinance navigation.
+                        onAboutClick = {
+                            isAboutOpen = true
+                        },
+
+                        // Sends the selected currency to Settings.
+                        selectedCurrency = selectedCurrency,
+
+                        // Receives the user's new currency selection.
+                        onCurrencyChange = { newCurrency ->
+                            selectedCurrency = newCurrency
                         }
                     )
+
                 } else {
-                    HomeScreen(onLogout = { isSettingsOpen = false
-                        isLoggedIn = false },
+
+                    // Display Home when logged in.
+                    HomeScreen(
+                        onLogout = {
+                            isLoggedIn = false
+                            isSettingsOpen = false
+                            isAboutOpen = false
+                        },
                         onSettingsClick = {
                             isSettingsOpen = true
-                        })
+                        }
+                    )
                 }
             }
         }
