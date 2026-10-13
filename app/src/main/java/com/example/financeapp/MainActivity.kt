@@ -41,12 +41,26 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FinanceAppTheme(dynamicColor = false) {
+                //Tracks whether the user is logged in
                 var isLoggedIn by remember { mutableStateOf(false) }
 
-                if (isLoggedIn) {
-                    HomeScreen(onLogout = { isLoggedIn = false })
-                } else {
+                //Tracks whether the settings screen is open
+                var isSettingsOpen by remember {mutableStateOf(false) }
+
+
+                if (!isLoggedIn) {
+                    //Show login when the user is not logged in
                     LoginScreen(onLoginClick = { isLoggedIn = true })
+                }
+                else if(isSettingsOpen){
+                    //Show Settings when the user opens is
+                    SettingsScreen(onBackClick = {isSettingsOpen = false})
+                } else {
+                    HomeScreen(onLogout = { isSettingsOpen = false
+                        isLoggedIn = false },
+                        onSettingsClick = {
+                            isSettingsOpen = true
+                        })
                 }
             }
         }
@@ -124,7 +138,9 @@ fun LoginScreen(
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit = {},
+    //
+    onSettingsClick: () -> Unit = {}
 ) {
     var isImageVisible by remember { mutableStateOf(false) }
 
@@ -196,7 +212,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { /* TODO: Handle Settings */ },
+                onClick = onSettingsClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Settings")
@@ -204,6 +220,8 @@ fun HomeScreen(
         }
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
