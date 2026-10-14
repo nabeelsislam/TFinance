@@ -34,6 +34,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.financeapp.ui.theme.FinanceAppTheme
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -145,7 +146,7 @@ fun LoginScreen(
     onLoginClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
@@ -180,12 +181,12 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = username,
+                value = email,
                 onValueChange = {
-                    username = it
+                    email = it
                     errorMessage = null
                 },
-                label = { Text("Username") },
+                label = { Text("Email") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -220,35 +221,26 @@ fun LoginScreen(
             } else {
                 Button(
                     onClick = {
-                        val inputUsername = username.trim()
-                        val inputPassword = password.trim()
+                        val inputEmail = email.trim()
 
-                        if (inputUsername.isEmpty() || inputPassword.isEmpty()) {
-                            errorMessage = "Please enter both username and password"
+                        if (inputEmail.isEmpty() || password.isEmpty()) {
+                            errorMessage = "Please enter both email and password"
                             return@Button
                         }
 
                         isLoading = true
                         errorMessage = null
 
-                        // Check Firestore "login" collection for matching "Username" and "Password"
-                        val db = FirebaseFirestore.getInstance()
-                        db.collection("login")
-                            .whereEqualTo("Username", inputUsername)
-                            .whereEqualTo("Password", inputPassword)
-                            .get()
-                            .addOnSuccessListener { querySnapshot ->
+                        FirebaseAuth.getInstance()
+                            .signInWithEmailAndPassword(inputEmail, password)
+                            .addOnCompleteListener { task ->
                                 isLoading = false
-                                if (!querySnapshot.isEmpty) {
+                                if (task.isSuccessful) {
                                     Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
                                     onLoginClick()
                                 } else {
-                                    errorMessage = "Invalid Username or Password"
+                                    errorMessage = "Invalid email or password"
                                 }
-                            }
-                            .addOnFailureListener { exception ->
-                                isLoading = false
-                                errorMessage = "Database Error: ${exception.localizedMessage}"
                             }
                     },
                     modifier = Modifier.fillMaxWidth()
