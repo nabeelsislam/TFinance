@@ -1,3 +1,4 @@
+
 package com.example.financeapp
 
 import android.os.Bundle
@@ -48,9 +49,9 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
 
-            //Stores the currency selected by the user
-            //MainActivity manages it so it survives the screen navigation
-            var selectedCurrency by remember{
+            // Stores the currency selected by the user.
+            // MainActivity manages it so it survives screen navigation.
+            var selectedCurrency by remember {
                 mutableStateOf("USD")
             }
 
@@ -70,11 +71,15 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
-                //Tracks whether the About TFinance page is open
-                var isAboutOpen by remember{
+                // Tracks whether the Transfer Money screen is open.
+                var isTransferOpen by remember {
                     mutableStateOf(false)
                 }
 
+                // Tracks whether the About TFinance page is open.
+                var isAboutOpen by remember {
+                    mutableStateOf(false)
+                }
 
                 if (!isLoggedIn) {
 
@@ -121,6 +126,16 @@ class MainActivity : ComponentActivity() {
                         }
                     )
 
+                } else if (isTransferOpen) {
+
+                    // Display the Transfer Money screen.
+                    TransferScreen(
+                        onBackClick = {
+                            // Return to the Home screen.
+                            isTransferOpen = false
+                        }
+                    )
+
                 } else {
 
                     // Display Home when logged in.
@@ -129,9 +144,16 @@ class MainActivity : ComponentActivity() {
                             isLoggedIn = false
                             isSettingsOpen = false
                             isAboutOpen = false
+                            isTransferOpen = false
                         },
+
                         onSettingsClick = {
                             isSettingsOpen = true
+                        },
+
+                        // Open the Transfer Money screen.
+                        onTransferClick = {
+                            isTransferOpen = true
                         }
                     )
                 }
@@ -235,8 +257,14 @@ fun LoginScreen(
                             .signInWithEmailAndPassword(inputEmail, password)
                             .addOnCompleteListener { task ->
                                 isLoading = false
+
                                 if (task.isSuccessful) {
-                                    Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Login Successful!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+
                                     onLoginClick()
                                 } else {
                                     errorMessage = "Invalid email or password"
@@ -257,8 +285,8 @@ fun LoginScreen(
 fun HomeScreen(
     modifier: Modifier = Modifier,
     onLogout: () -> Unit = {},
-    //
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onTransferClick: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -308,8 +336,9 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Opens the Transfer Money screen.
             Button(
-                onClick = { /* TODO: Handle Transfer Money */ },
+                onClick = onTransferClick,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Transfer Money")
@@ -335,8 +364,6 @@ fun HomeScreen(
         }
     }
 }
-
-
 
 @Preview(showBackground = true)
 @Composable
