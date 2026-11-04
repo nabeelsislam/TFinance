@@ -1,6 +1,8 @@
+
 package com.example.financeapp
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,28 +35,27 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.financeapp.ui.theme.FinanceAppTheme
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
         setContent {
 
             // Tracks whether Dark Mode is enabled.
-            // MainActivity owns this state so the entire app can use it.
             var isDarkMode by remember {
                 mutableStateOf(false)
             }
 
-            //Stores the currency selected by the user
-            //MainActivity manages it so it survives the screen navigation
-            var selectedCurrency by remember{
+            // Stores the currency selected by the user.
+            var selectedCurrency by remember {
                 mutableStateOf("USD")
             }
 
-            // The theme reads the current Dark Mode value.
             FinanceAppTheme(
                 darkTheme = isDarkMode,
                 dynamicColor = false
@@ -65,29 +66,45 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
-                // Tracks whether the Settings screen is open.
+                // Actual Firestore document ID, such as USER009.
+                var currentUserId by remember {
+                    mutableStateOf<String?>(null)
+                }
+
+                // Display name stored in the user_id field.
+                var currentUserName by remember {
+                    mutableStateOf("")
+                }
+
+                // Navigation states.
                 var isSettingsOpen by remember {
                     mutableStateOf(false)
                 }
 
-                //Tracks whether the About TFinance page is open
-                var isAboutOpen by remember{
+                var isAboutOpen by remember {
                     mutableStateOf(false)
                 }
 
+                var isAccountsOpen by remember {
+                    mutableStateOf(false)
+                }
 
                 if (!isLoggedIn) {
 
-                    // Show Login when the user is logged out.
+                    // Show the login screen.
                     LoginScreen(
-                        onLoginClick = {
+                        onLoginClick = { documentId, displayName ->
+
+                            currentUserId = documentId
+                            currentUserName = displayName
+
                             isLoggedIn = true
                         }
                     )
 
                 } else if (isAboutOpen) {
 
-                    // Display the About TFinance page.
+                    // Display the About page.
                     AboutScreen(
                         onBackClick = {
                             isAboutOpen = false
@@ -96,42 +113,66 @@ class MainActivity : ComponentActivity() {
 
                 } else if (isSettingsOpen) {
 
+                    // Display Settings.
                     SettingsScreen(
                         onBackClick = {
                             isSettingsOpen = false
                         },
 
-                        // Existing Dark Mode functionality.
                         isDarkMode = isDarkMode,
+
                         onDarkModeChange = { newValue ->
                             isDarkMode = newValue
                         },
 
-                        // Existing About TFinance navigation.
                         onAboutClick = {
                             isAboutOpen = true
                         },
 
-                        // Sends the selected currency to Settings.
                         selectedCurrency = selectedCurrency,
 
-                        // Receives the user's new currency selection.
                         onCurrencyChange = { newCurrency ->
                             selectedCurrency = newCurrency
                         }
                     )
 
+                } else if (isAccountsOpen) {
+
+                    // Display the user's accounts.
+                    AccountsScreen(
+                        userId = currentUserId ?: "",
+
+                        onBackClick = {
+                            isAccountsOpen = false
+                        }
+                    )
+
                 } else {
 
-                    // Display Home when logged in.
+                    // Display the Home screen.
                     HomeScreen(
+                        userName = currentUserName,
+
                         onLogout = {
+
+                            // Sign out of Firebase Authentication.
+                            FirebaseAuth.getInstance().signOut()
+
+                            currentUserId = null
+                            currentUserName = ""
+
                             isLoggedIn = false
                             isSettingsOpen = false
                             isAboutOpen = false
+                            isAccountsOpen = false
                         },
+
                         onSettingsClick = {
                             isSettingsOpen = true
+                        },
+
+                        onAccountsClick = {
+                            isAccountsOpen = true
                         }
                     )
                 }
@@ -140,39 +181,77 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+// -------------------------------------
+// LOGIN SCREEN
+// -------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginClick: () -> Unit,
+    onLoginClick: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+
+    var email by remember {
+        mutableStateOf("")
+    }
+
+    var password by remember {
+        mutableStateOf("")
+    }
+
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
 
     val context = LocalContext.current
+
+    // Firebase instances.
+    val auth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    val db = remember {
+        FirebaseFirestore.getInstance()
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Finance App - Login") },
+                title = {
+                    Text("Finance App - Login")
+                },
+
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor =
+                        MaterialTheme.colorScheme.primaryContainer,
+
+                    titleContentColor =
+                        MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
+
         modifier = modifier.fillMaxSize()
+
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(24.dp),
+
             horizontalAlignment = Alignment.CenterHorizontally,
+
             verticalArrangement = Arrangement.Center
         ) {
+
             Text(
                 text = "Welcome Back",
                 style = MaterialTheme.typography.headlineMedium
@@ -180,33 +259,51 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Email input.
             OutlinedTextField(
                 value = email,
+
                 onValueChange = {
                     email = it
                     errorMessage = null
                 },
-                label = { Text("Email") },
+
+                label = {
+                    Text("Email")
+                },
+
                 singleLine = true,
+
                 modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Password input.
             OutlinedTextField(
                 value = password,
+
                 onValueChange = {
                     password = it
                     errorMessage = null
                 },
-                label = { Text("Password") },
+
+                label = {
+                    Text("Password")
+                },
+
                 singleLine = true,
+
                 visualTransformation = PasswordVisualTransformation(),
+
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Display login errors.
             if (errorMessage != null) {
+
                 Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
                     text = errorMessage!!,
                     color = MaterialTheme.colorScheme.error,
@@ -217,33 +314,129 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (isLoading) {
+
                 CircularProgressIndicator()
+
             } else {
+
                 Button(
                     onClick = {
+
                         val inputEmail = email.trim()
 
+                        // Validate input.
                         if (inputEmail.isEmpty() || password.isEmpty()) {
-                            errorMessage = "Please enter both email and password"
+
+                            errorMessage =
+                                "Please enter both email and password"
+
                             return@Button
                         }
 
                         isLoading = true
                         errorMessage = null
 
-                        FirebaseAuth.getInstance()
-                            .signInWithEmailAndPassword(inputEmail, password)
-                            .addOnCompleteListener { task ->
-                                isLoading = false
-                                if (task.isSuccessful) {
-                                    Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
-                                    onLoginClick()
+                        // Authenticate using Firebase.
+                        auth.signInWithEmailAndPassword(
+                            inputEmail,
+                            password
+                        )
+                            .addOnSuccessListener { result ->
+
+                                val uid = result.user?.uid
+
+                                if (uid == null) {
+
+                                    isLoading = false
+
+                                    errorMessage =
+                                        "Unable to identify user"
+
+                                    auth.signOut()
+
                                 } else {
-                                    errorMessage = "Invalid email or password"
+
+                                    // Find the user's Firestore document.
+                                    db.collection("Users")
+                                        .whereEqualTo("auth_id", uid)
+                                        .limit(1)
+                                        .get()
+                                        .addOnSuccessListener { documents ->
+
+                                            isLoading = false
+
+                                            if (!documents.isEmpty) {
+
+                                                val document =
+                                                    documents.documents[0]
+
+                                                // Firestore document ID.
+                                                val documentId = document.id
+
+                                                // User's display name.
+                                                val displayName =
+                                                    document.getString("user_id")
+                                                        ?: documentId
+
+                                                Log.d(
+                                                    "Firebase",
+                                                    "Logged in as: $displayName"
+                                                )
+
+                                                Toast.makeText(
+                                                    context,
+                                                    "Welcome $displayName!",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+
+                                                // Send both values to MainActivity.
+                                                onLoginClick(
+                                                    documentId,
+                                                    displayName
+                                                )
+
+                                            } else {
+
+                                                errorMessage =
+                                                    "User not found in database"
+
+                                                auth.signOut()
+                                            }
+                                        }
+                                        .addOnFailureListener { exception ->
+
+                                            isLoading = false
+
+                                            errorMessage =
+                                                "Unable to load user information"
+
+                                            Log.e(
+                                                "Firebase",
+                                                "Firestore error",
+                                                exception
+                                            )
+
+                                            auth.signOut()
+                                        }
                                 }
                             }
+                            .addOnFailureListener { exception ->
+
+                                isLoading = false
+
+                                errorMessage =
+                                    "Invalid email or password"
+
+                                Log.e(
+                                    "Firebase",
+                                    "Login failed",
+                                    exception
+                                )
+                            }
                     },
+
                     modifier = Modifier.fillMaxWidth()
+
                 ) {
                     Text("Login")
                 }
@@ -252,47 +445,84 @@ fun LoginScreen(
     }
 }
 
+
+// -------------------------------------
+// HOME SCREEN
+// -------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    userName: String = "",
     onLogout: () -> Unit = {},
-    //
-    onSettingsClick: () -> Unit = {}
+    onSettingsClick: () -> Unit = {},
+    onAccountsClick: () -> Unit = {}
 ) {
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Finance App") },
+                title = {
+                    Text("Finance App")
+                },
+
                 actions = {
+
                     Button(
                         onClick = onLogout,
+
                         modifier = Modifier.padding(end = 8.dp)
+
                     ) {
                         Text("Logout")
                     }
                 },
+
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor =
+                        MaterialTheme.colorScheme.primaryContainer,
+
+                    titleContentColor =
+                        MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
         },
+
         modifier = modifier.fillMaxSize()
+
     ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(16.dp),
+
             horizontalAlignment = Alignment.CenterHorizontally,
+
             verticalArrangement = Arrangement.Top
         ) {
+
             Spacer(modifier = Modifier.height(16.dp))
 
+            // Display the user's name.
+            if (userName.isNotEmpty()) {
+
+                Text(
+                    text = "Welcome, $userName!",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // View Accounts button.
             Button(
-                onClick = { /* TODO: Handle View Accounts */ },
+                onClick = onAccountsClick,
+
                 modifier = Modifier.fillMaxWidth()
+
             ) {
                 Text("View Accounts")
             }
@@ -300,8 +530,12 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { /* TODO: Handle Transactions */ },
+                onClick = {
+                    // TODO: Handle Transactions
+                },
+
                 modifier = Modifier.fillMaxWidth()
+
             ) {
                 Text("Transactions")
             }
@@ -309,8 +543,12 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { /* TODO: Handle Transfer Money */ },
+                onClick = {
+                    // TODO: Handle Transfer Money
+                },
+
                 modifier = Modifier.fillMaxWidth()
+
             ) {
                 Text("Transfer Money")
             }
@@ -318,17 +556,24 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = { /* TODO: Handle Budget & Analytics */ },
+                onClick = {
+                    // TODO: Handle Budget & Analytics
+                },
+
                 modifier = Modifier.fillMaxWidth()
+
             ) {
                 Text("Budget & Analytics")
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Settings button.
             Button(
                 onClick = onSettingsClick,
+
                 modifier = Modifier.fillMaxWidth()
+
             ) {
                 Text("Settings")
             }
@@ -336,20 +581,3 @@ fun HomeScreen(
     }
 }
 
-
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    FinanceAppTheme(dynamicColor = false) {
-        LoginScreen(onLoginClick = {})
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    FinanceAppTheme(dynamicColor = false) {
-        HomeScreen()
-    }
-}
