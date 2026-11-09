@@ -20,25 +20,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 
-data class BankAccount(
-    val id: String,
-    val name: String,
-    val type: String,
-    val balance: Double,
-    val currency: String,
-    val asOfDate: String,
-    val creditLimit: Double?
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(
     userId: String,
     onBackClick: () -> Unit
 ) {
+
     var accounts by remember(userId) {
-        mutableStateOf<List<BankAccount>>(emptyList())
+        mutableStateOf<List<Account>>(emptyList())
     }
+
 
     var isLoading by remember(userId) {
         mutableStateOf(true)
@@ -69,7 +61,7 @@ fun AccountsScreen(
 
                     if (snapshot != null) {
                         accounts = snapshot.documents.map { document ->
-                            BankAccount(
+                            Account(
                                 id = document.id,
                                 name = document.getString("account_name")
                                     ?: document.id,
@@ -267,7 +259,7 @@ fun AccountsScreen(
 }
 
 @Composable
-fun AccountCard(account: BankAccount) {
+fun AccountCard(account: Account) {
 
     val isCredit = account.type.contains("Credit", true)
 

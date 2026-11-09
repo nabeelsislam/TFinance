@@ -89,6 +89,13 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
+                // Tracks whether the Transfer Money screen is open.
+                var isTransferOpen by remember {
+                    mutableStateOf(false)
+                }
+
+
+
                 if (!isLoggedIn) {
 
                     // Show the login screen.
@@ -146,8 +153,16 @@ class MainActivity : ComponentActivity() {
                             isAccountsOpen = false
                         }
                     )
+                } else if (isTransferOpen) {
 
-                } else {
+                    // Display the Transfer Money screen.
+                    TransferScreen(
+                        onBackClick = {
+                            // Return to the Home screen.
+                            isTransferOpen = false
+                        }
+                    )
+                }else {
 
                     // Display the Home screen.
                     HomeScreen(
@@ -165,6 +180,7 @@ class MainActivity : ComponentActivity() {
                             isSettingsOpen = false
                             isAboutOpen = false
                             isAccountsOpen = false
+                            isTransferOpen = false
                         },
 
                         onSettingsClick = {
@@ -173,6 +189,10 @@ class MainActivity : ComponentActivity() {
 
                         onAccountsClick = {
                             isAccountsOpen = true
+                        },
+
+                        onTransferClick = {
+                            isTransferOpen = true;
                         }
                     )
                 }
@@ -424,8 +444,8 @@ fun LoginScreen(
 
                                 isLoading = false
 
-                                errorMessage =
-                                    "Invalid email or password"
+                                errorMessage = exception.localizedMessage
+                                    ?: "Unknown login error"
 
                                 Log.e(
                                     "Firebase",
@@ -457,8 +477,10 @@ fun HomeScreen(
     userName: String = "",
     onLogout: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onAccountsClick: () -> Unit = {}
+    onAccountsClick: () -> Unit = {},
+    onTransferClick: () -> Unit = {}
 ) {
+
 
     Scaffold(
         topBar = {
@@ -542,16 +564,15 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+
+            // Opens the Transfer Money screen when clicked.
             Button(
-                onClick = {
-                    // TODO: Handle Transfer Money
-                },
-
+                onClick = onTransferClick,
                 modifier = Modifier.fillMaxWidth()
-
             ) {
                 Text("Transfer Money")
             }
+
 
             Spacer(modifier = Modifier.height(12.dp))
 
