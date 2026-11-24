@@ -224,7 +224,7 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Finance App - Login")
+                    Text("GreenStack - Login")
                 },
 
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -357,8 +357,8 @@ fun LoginScreen(
                                 } else {
 
                                     // Find the user's Firestore document.
-                                    db.collection("Users")
-                                        .whereEqualTo("auth_id", uid)
+                                    db.collection("login")
+                                        .whereEqualTo("auth_uid", uid)
                                         .limit(1)
                                         .get()
                                         .addOnSuccessListener { documents ->
@@ -371,12 +371,11 @@ fun LoginScreen(
                                                     documents.documents[0]
 
                                                 // Firestore document ID.
-                                                val documentId = document.id
+                                                val documentId =
+                                                    document.getString("user_id") ?: ""
 
-                                                // User's display name.
                                                 val displayName =
-                                                    document.getString("user_id")
-                                                        ?: documentId
+                                                    document.getString("name") ?: documentId
 
                                                 Log.d(
                                                     "Firebase",
@@ -407,8 +406,7 @@ fun LoginScreen(
 
                                             isLoading = false
 
-                                            errorMessage =
-                                                "Unable to load user information"
+                                            errorMessage = "Firestore: ${exception.message}"
 
                                             Log.e(
                                                 "Firebase",
@@ -424,8 +422,7 @@ fun LoginScreen(
 
                                 isLoading = false
 
-                                errorMessage =
-                                    "Invalid email or password"
+                                errorMessage = "Authentication: ${exception.message}"
 
                                 Log.e(
                                     "Firebase",
@@ -464,7 +461,7 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Finance App")
+                    Text("GreenStack")
                 },
 
                 actions = {
