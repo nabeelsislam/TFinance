@@ -1,4 +1,3 @@
-
 package com.example.financeapp
 
 import android.os.Bundle
@@ -71,7 +70,7 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<String?>(null)
                 }
 
-                // Display name stored in the user_id field.
+                // Display name stored in the Username field of login.
                 var currentUserName by remember {
                     mutableStateOf("")
                 }
@@ -192,7 +191,7 @@ class MainActivity : ComponentActivity() {
                         },
 
                         onTransferClick = {
-                            isTransferOpen = true;
+                            isTransferOpen = true
                         }
                     )
                 }
@@ -244,7 +243,7 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Finance App - Login")
+                    Text("GreenStack - Login")
                 },
 
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -376,12 +375,12 @@ fun LoginScreen(
 
                                 } else {
 
-                                    // Find the user's Firestore document.
-                                    db.collection("Users")
-                                        .whereEqualTo("auth_id", uid)
+                                    // Find the user's login document.
+                                    db.collection("login")
+                                        .whereEqualTo("auth_uid", uid)
                                         .limit(1)
                                         .get()
-                                        .addOnSuccessListener { documents ->
+                                        .addOnSuccessListener loginLookup@{ documents ->
 
                                             isLoading = false
 
@@ -390,12 +389,18 @@ fun LoginScreen(
                                                 val document =
                                                     documents.documents[0]
 
-                                                // Firestore document ID.
-                                                val documentId = document.id
+                                                // Linked Users document ID.
+                                                val documentId = document.getString("user_id").orEmpty()
+
+                                                if (documentId.isBlank()) {
+                                                    errorMessage = "Missing user_id in login document"
+                                                    auth.signOut()
+                                                    return@loginLookup
+                                                }
 
                                                 // User's display name.
                                                 val displayName =
-                                                    document.getString("user_id")
+                                                    document.getString("name")
                                                         ?: documentId
 
                                                 Log.d(
@@ -428,7 +433,7 @@ fun LoginScreen(
                                             isLoading = false
 
                                             errorMessage =
-                                                "Unable to load user information"
+                                                "Firestore: ${exception.message}"
 
                                             Log.e(
                                                 "Firebase",
@@ -444,8 +449,7 @@ fun LoginScreen(
 
                                 isLoading = false
 
-                                errorMessage = exception.localizedMessage
-                                    ?: "Unknown login error"
+                                errorMessage = "Authentication: ${exception.localizedMessage ?: "Unknown login error"}"
 
                                 Log.e(
                                     "Firebase",
@@ -486,7 +490,7 @@ fun HomeScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Finance App")
+                    Text("GreenStack")
                 },
 
                 actions = {
@@ -601,4 +605,3 @@ fun HomeScreen(
         }
     }
 }
-
