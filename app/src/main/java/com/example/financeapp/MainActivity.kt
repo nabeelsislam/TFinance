@@ -89,6 +89,13 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
+                // Tracks whether the Transfer Money screen is open.
+                var isTransferOpen by remember {
+                    mutableStateOf(false)
+                }
+
+
+
                 if (!isLoggedIn) {
 
                     // Show the login screen.
@@ -146,8 +153,16 @@ class MainActivity : ComponentActivity() {
                             isAccountsOpen = false
                         }
                     )
+                } else if (isTransferOpen) {
 
-                } else {
+                    // Display the Transfer Money screen.
+                    TransferScreen(
+                        onBackClick = {
+                            // Return to the Home screen.
+                            isTransferOpen = false
+                        }
+                    )
+                }else {
 
                     // Display the Home screen.
                     HomeScreen(
@@ -165,6 +180,7 @@ class MainActivity : ComponentActivity() {
                             isSettingsOpen = false
                             isAboutOpen = false
                             isAccountsOpen = false
+                            isTransferOpen = false
                         },
 
                         onSettingsClick = {
@@ -173,6 +189,10 @@ class MainActivity : ComponentActivity() {
 
                         onAccountsClick = {
                             isAccountsOpen = true
+                        },
+
+                        onTransferClick = {
+                            isTransferOpen = true;
                         }
                     )
                 }
@@ -224,7 +244,7 @@ fun LoginScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("GreenStack - Login")
+                    Text("Finance App - Login")
                 },
 
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -357,8 +377,8 @@ fun LoginScreen(
                                 } else {
 
                                     // Find the user's Firestore document.
-                                    db.collection("login")
-                                        .whereEqualTo("auth_uid", uid)
+                                    db.collection("Users")
+                                        .whereEqualTo("auth_id", uid)
                                         .limit(1)
                                         .get()
                                         .addOnSuccessListener { documents ->
@@ -371,11 +391,12 @@ fun LoginScreen(
                                                     documents.documents[0]
 
                                                 // Firestore document ID.
-                                                val documentId =
-                                                    document.getString("user_id") ?: ""
+                                                val documentId = document.id
 
+                                                // User's display name.
                                                 val displayName =
-                                                    document.getString("name") ?: documentId
+                                                    document.getString("user_id")
+                                                        ?: documentId
 
                                                 Log.d(
                                                     "Firebase",
@@ -406,7 +427,8 @@ fun LoginScreen(
 
                                             isLoading = false
 
-                                            errorMessage = "Firestore: ${exception.message}"
+                                            errorMessage =
+                                                "Unable to load user information"
 
                                             Log.e(
                                                 "Firebase",
@@ -422,7 +444,8 @@ fun LoginScreen(
 
                                 isLoading = false
 
-                                errorMessage = "Authentication: ${exception.message}"
+                                errorMessage = exception.localizedMessage
+                                    ?: "Unknown login error"
 
                                 Log.e(
                                     "Firebase",
@@ -454,14 +477,16 @@ fun HomeScreen(
     userName: String = "",
     onLogout: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onAccountsClick: () -> Unit = {}
+    onAccountsClick: () -> Unit = {},
+    onTransferClick: () -> Unit = {}
 ) {
+
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("GreenStack")
+                    Text("Finance App")
                 },
 
                 actions = {
@@ -539,16 +564,15 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+
+            // Opens the Transfer Money screen when clicked.
             Button(
-                onClick = {
-                    // TODO: Handle Transfer Money
-                },
-
+                onClick = onTransferClick,
                 modifier = Modifier.fillMaxWidth()
-
             ) {
                 Text("Transfer Money")
             }
+
 
             Spacer(modifier = Modifier.height(12.dp))
 
