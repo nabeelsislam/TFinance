@@ -47,6 +47,9 @@ import java.math.BigDecimal
 
 @Composable
 fun TransferScreen(
+    // User and login document IDs resolved by MainActivity at login.
+    userId: String?,
+    loginDocumentId: String?,
     // Supplied by MainActivity to return to the home screen.
     onBackClick: () -> Unit
 ) {
@@ -57,6 +60,9 @@ fun TransferScreen(
     // Starts on the Transfer Money menu.
     var isInternalTransferOpen by remember { mutableStateOf(false) }
 
+    // STEP 1: Open the separate external transfer form.
+    var isExternalTransferOpen by remember { mutableStateOf(false) }
+
     // Store document IDs rather than account display names.
     var fromAccountId by remember { mutableStateOf<String?>(null) }
     var toAccountId by remember { mutableStateOf<String?>(null) }
@@ -64,16 +70,16 @@ fun TransferScreen(
 
 
     // Amount entered by the user.
-        var transferAmount by remember {mutableStateOf("") }
+    var transferAmount by remember { mutableStateOf("") }
 
     // Prevents multiple submissions while a transfer is processing.
-        var isTransferring by remember {mutableStateOf(false)}
+    var isTransferring by remember { mutableStateOf(false) }
 
     // Displays success or error messages.
-        var transferMessage by remember { mutableStateOf<String?>(null) }
+    var transferMessage by remember { mutableStateOf<String?>(null) }
 
     // Used to reload account balances after a successful transfer.
-        var refreshAccounts by remember {mutableStateOf(0)}
+    var refreshAccounts by remember { mutableStateOf(0) }
 
 
     // Control whether each dropdown menu is visible.
@@ -87,10 +93,12 @@ fun TransferScreen(
     // UID of the currently signed-in Firebase Authentication user.
     val uid = FirebaseAuth.getInstance().currentUser?.uid
 
-    // The matching Firestore document ID, like USER001.
-    var firestoreUserId by remember { mutableStateOf<String?>(null) }
-    var lookupMessage by remember {
-        mutableStateOf("Looking for your account...")
+    // Use the linked Users document ID only when a user is signed in.
+    // This if expression produces either a String or null.
+    val firestoreUserId: String? = if (userId != null && userId.isNotBlank() && uid != null) {
+        userId
+    } else {
+        null
     }
 
     // Accounts loaded from Users/{userId}/accounts.
@@ -99,59 +107,16 @@ fun TransferScreen(
         mutableStateOf<List<Account>>(emptyList())
     }
     var accountsMessage by remember {
-        mutableStateOf("Waiting for user lookup...")
+        mutableStateOf("Loading accounts...")
     }
 
     //
-    // STEP 1: FIND THE SIGNED-IN USER IN FIRESTORE
+    // LOAD THE SIGNED-IN USER'S ACCOUNT DOCUMENTS
     //
 
-    LaunchedEffect(uid) {
-        firestoreUserId = null
-        lookupMessage = "Looking for your account..."
-
-        if (uid == null) {
-            lookupMessage = "No user is signed in"
-        } else {
-            FirebaseFirestore.getInstance()
-                .collection("Users")
-                .whereEqualTo("auth_id", uid)
-                .get()
-                .addOnSuccessListener { result ->
-
-                    // Ignore a delayed response if another user signed in.
-                    if (FirebaseAuth.getInstance().currentUser?.uid != uid) {
-                        return@addOnSuccessListener
-                    }
-
-                    // We require exactly one matching user document.
-                    val userDocument = result.documents.singleOrNull()
-
-                    if (userDocument != null) {
-                        firestoreUserId = userDocument.id
-                        lookupMessage = "Found user: ${userDocument.id}"
-                    } else {
-                        firestoreUserId = null
-                        lookupMessage = "Expected one matching user"
-                    }
-                }
-                .addOnFailureListener { exception ->
-                    if (FirebaseAuth.getInstance().currentUser?.uid != uid) {
-                        return@addOnFailureListener
-                    }
-
-                    firestoreUserId = null
-                    lookupMessage =
-                        "Lookup failed: ${exception.localizedMessage}"
-                }
-        }
-    }
-
-    //
-    // STEP 2: LOAD THAT USER'S ACCOUNT DOCUMENTS
-    //
-
-    LaunchedEffect(firestoreUserId, refreshAccounts) {
+    // Compose runs this effect on entry and when one of these keys changes.
+    // The Firebase get() request is asynchronous; its listeners run later.
+    LaunchedEffect(firestoreUserId, uid, refreshAccounts) {
         // Clear data and selections whenever the user document changes.
         loadedAccounts = emptyList()
         fromAccountId = null
@@ -162,7 +127,7 @@ fun TransferScreen(
         val userId = firestoreUserId
 
         if (userId == null) {
-            accountsMessage = "Waiting for user lookup..."
+            accountsMessage = "No linked user. Please log in again."
         } else {
             accountsMessage = "Loading accounts..."
 
@@ -172,7 +137,9 @@ fun TransferScreen(
                 .collection("accounts")
                 .get()
                 .addOnSuccessListener { result ->
-                    // Ignore an old response if the selected user changed.
+                    // Check the captured user IDs and current Firebase UID.
+                    // This is a limited guard, not cancellation of an old request.
+                    // return@addOnSuccessListener exits just this callback.
                     if (firestoreUserId != userId ||
                         FirebaseAuth.getInstance().currentUser?.uid != uid
                     ) {
@@ -180,8 +147,10 @@ fun TransferScreen(
                     }
 
                     // Convert each Firestore document into our shared Account class.
-                    loadedAccounts = result.documents.map { document ->
-                        Account(
+                    // Build a temporary list, then assign it to observable state.
+                    val newAccounts = mutableListOf<Account>()
+                    for (document in result.documents) {
+                        val account = Account(
                             // Unique Firestore document ID.
                             id = document.id,
 
@@ -208,8 +177,10 @@ fun TransferScreen(
                             // Credit limit, if one exists.
                             creditLimit = document.getDouble("credit_limit")
                         )
+                        newAccounts.add(account)
                     }
-
+                    // Reassign the state so Compose can display the new list.
+                    loadedAccounts = newAccounts
 
                     accountsMessage = if (loadedAccounts.isEmpty()) {
                         "No accounts found"
@@ -229,6 +200,23 @@ fun TransferScreen(
                         "Account lookup failed: ${exception.localizedMessage}"
                 }
         }
+    }
+
+    // Show the external page instead of the existing transfer menu.
+    // Pass the same account list; there is no second database query.
+    // The account-loading effect above remains active.
+    if (isExternalTransferOpen) {
+        ExternalTransferScreen(
+            accounts = loadedAccounts,
+            onBackClick = {
+                // This callback is called by the external page to return here.
+                isExternalTransferOpen = false
+            },
+            accountsMessage = accountsMessage
+        )
+        // Stop this execution of the composable so the menu is not drawn too.
+        // Changing isExternalTransferOpen will trigger recomposition.
+        return
     }
 
     //
@@ -252,14 +240,14 @@ fun TransferScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Temporary debug messages; remove for the final interface.
-            Text(text = lookupMessage)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(text = accountsMessage)
-            Spacer(modifier = Modifier.height(12.dp))
+            // Keep loading/error messages, but hide successful lookup messages.
+            if (loadedAccounts.isEmpty()) {
+                Text(text = accountsMessage)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Display the account records read from Firestore.
-            loadedAccounts.forEach { account ->
+            for (account in loadedAccounts) {
                 Text(text = "${account.name} (${account.id})")
                 Text(text = "Type: ${account.type}")
 
@@ -275,15 +263,17 @@ fun TransferScreen(
 
             // Credit-card transfers need separate rules, so for now
             // only Checking and Savings can be used as sources.
-            val sourceAccounts = loadedAccounts.filter { account ->
-                account.type.equals("Checking", ignoreCase = true) ||
-                        account.type.equals("Savings", ignoreCase = true)
+            val sourceAccounts = mutableListOf<Account>()
+            for (account in loadedAccounts) {
+                val isChecking = account.type.equals("Checking", ignoreCase = true)
+                val isSavings = account.type.equals("Savings", ignoreCase = true)
+                if (isChecking || isSavings) {
+                    sourceAccounts.add(account)
+                }
             }
 
             // Find the Account object matching the chosen source ID.
-            val selectedSource = sourceAccounts.find { account ->
-                account.id == fromAccountId
-            }
+            val selectedSource = findTransferAccount(sourceAccounts, fromAccountId)
 
             Text(
                 text = "Transfer From",
@@ -304,7 +294,7 @@ fun TransferScreen(
                     expanded = isFromMenuExpanded,
                     onDismissRequest = { isFromMenuExpanded = false }
                 ) {
-                    sourceAccounts.forEach { account ->
+                    for (account in sourceAccounts) {
                         DropdownMenuItem(
                             text = { Text("${account.name} (${account.id})") },
                             onClick = {
@@ -324,22 +314,21 @@ fun TransferScreen(
             // Eligible destinations must be different accounts,
             // have the same currency, and be Checking or Savings.
             // No destination can be chosen until a source is selected.
-            val destinationAccounts: List<Account> =
-                if (selectedSource == null) {
-                    emptyList()
-                } else {
-                    sourceAccounts.filter { account ->
-                        account.id != selectedSource.id &&
-                                account.currency.equals(
-                                    selectedSource.currency,
-                                    ignoreCase = true
-                                )
+            val destinationAccounts = mutableListOf<Account>()
+            if (selectedSource != null) {
+                for (account in sourceAccounts) {
+                    val differentAccount = account.id != selectedSource.id
+                    val sameCurrency = account.currency.equals(
+                        selectedSource.currency,
+                        ignoreCase = true
+                    )
+                    if (differentAccount && sameCurrency) {
+                        destinationAccounts.add(account)
                     }
                 }
-
-            val selectedDestination = destinationAccounts.find { account ->
-                account.id == toAccountId
             }
+
+            val selectedDestination = findTransferAccount(destinationAccounts, toAccountId)
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
@@ -364,7 +353,7 @@ fun TransferScreen(
                     expanded = isToMenuExpanded,
                     onDismissRequest = { isToMenuExpanded = false }
                 ) {
-                    destinationAccounts.forEach { account ->
+                    for (account in destinationAccounts) {
                         DropdownMenuItem(
                             text = { Text("${account.name} (${account.id})") },
                             onClick = {
@@ -398,8 +387,9 @@ fun TransferScreen(
 
             Button(
                 onClick = {
-                    // Capture the selected account IDs and user ID.
+                    // Capture the selected account IDs, user ID, and login document ID.
                     val userId = firestoreUserId
+                    val loginId = loginDocumentId
                     val fromId = selectedSource?.id
                     val toId = selectedDestination?.id
 
@@ -408,7 +398,7 @@ fun TransferScreen(
 
                     // Validate the input before contacting Firestore.
                     when {
-                        uid == null || userId == null -> {
+                        uid == null || userId == null || loginId.isNullOrBlank() -> {
                             transferMessage = "Please log in again."
                         }
 
@@ -431,6 +421,7 @@ fun TransferScreen(
                             // Reference the two accounts belonging to this user.
                             val db = FirebaseFirestore.getInstance()
                             val userRef = db.collection("Users").document(userId)
+                            val loginRef = db.collection("login").document(loginId)
 
                             val fromRef = userRef
                                 .collection("accounts")
@@ -444,15 +435,22 @@ fun TransferScreen(
                             transferMessage = null
 
                             // Read, validate, and update both balances atomically.
+                            // A transaction commits all updates together or none.
+                            // The current security rules still block these writes.
+                            // This existing database logic is left to the database team.
                             db.runTransaction { transaction ->
 
                                 // All reads must happen before writes.
-                                val userDoc = transaction.get(userRef)
+                                val loginDoc = transaction.get(loginRef)
                                 val fromDoc = transaction.get(fromRef)
                                 val toDoc = transaction.get(toRef)
 
-                                // Ensure the user document matches the signed-in user.
-                                require(userDoc.getString("auth_id") == uid) {
+                                // Verify the current login-to-user mapping before updating balances.
+                                require(
+                                    loginDoc.exists() &&
+                                            loginDoc.getString("auth_uid") == uid &&
+                                            loginDoc.getString("user_id") == userId
+                                ) {
                                     "Account ownership could not be verified."
                                 }
 
@@ -556,7 +554,9 @@ fun TransferScreen(
             }
 
             // Show the result to the user.
-            transferMessage?.let { message ->
+            // Use a local val so the null check lets Kotlin treat it as a String.
+            val message = transferMessage
+            if (message != null) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(message)
             }
@@ -594,11 +594,11 @@ fun TransferScreen(
 
             Button(
                 onClick = {
-                    // TODO: Implement External Transfers in a later step.
+                    isExternalTransferOpen = true
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("External Transfer")
+                Text("GreenStack Transfer")
             }
         }
 
@@ -612,4 +612,14 @@ fun TransferScreen(
             Text("Back to Home")
         }
     }
+}
+
+// Find an account by its unique document ID, like a search through a Java list.
+private fun findTransferAccount(accounts: List<Account>, id: String?): Account? {
+    for (account in accounts) {
+        if (account.id == id) {
+            return account
+        }
+    }
+    return null
 }

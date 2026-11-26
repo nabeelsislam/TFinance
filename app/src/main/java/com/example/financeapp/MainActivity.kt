@@ -70,7 +70,12 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<String?>(null)
                 }
 
-                // Display name stored in the Username field of login.
+                // Firestore document ID in the login collection.
+                var currentLoginDocumentId by remember {
+                    mutableStateOf<String?>(null)
+                }
+
+                // Display name stored in the name field of login.
                 var currentUserName by remember {
                     mutableStateOf("")
                 }
@@ -99,9 +104,10 @@ class MainActivity : ComponentActivity() {
 
                     // Show the login screen.
                     LoginScreen(
-                        onLoginClick = { documentId, displayName ->
+                        onLoginClick = { documentId, displayName, loginDocumentId ->
 
                             currentUserId = documentId
+                            currentLoginDocumentId = loginDocumentId
                             currentUserName = displayName
 
                             isLoggedIn = true
@@ -156,6 +162,8 @@ class MainActivity : ComponentActivity() {
 
                     // Display the Transfer Money screen.
                     TransferScreen(
+                        userId = currentUserId,
+                        loginDocumentId = currentLoginDocumentId,
                         onBackClick = {
                             // Return to the Home screen.
                             isTransferOpen = false
@@ -173,6 +181,7 @@ class MainActivity : ComponentActivity() {
                             FirebaseAuth.getInstance().signOut()
 
                             currentUserId = null
+                            currentLoginDocumentId = null
                             currentUserName = ""
 
                             isLoggedIn = false
@@ -208,7 +217,7 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginClick: (String, String) -> Unit,
+    onLoginClick: (String, String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
 
@@ -414,10 +423,11 @@ fun LoginScreen(
                                                     Toast.LENGTH_SHORT
                                                 ).show()
 
-                                                // Send both values to MainActivity.
+                                                // Send the linked user ID, display name, and login document ID to MainActivity.
                                                 onLoginClick(
                                                     documentId,
-                                                    displayName
+                                                    displayName,
+                                                    document.id
                                                 )
 
                                             } else {
