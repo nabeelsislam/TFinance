@@ -93,6 +93,11 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf(false)
                 }
 
+                // Tracks whether the Transactions page is open.
+                var isTransactionsOpen by remember {
+                    mutableStateOf(false)
+                }
+
                 // Tracks whether the Transfer Money screen is open.
                 var isTransferOpen by remember {
                     mutableStateOf(false)
@@ -158,6 +163,14 @@ class MainActivity : ComponentActivity() {
                             isAccountsOpen = false
                         }
                     )
+                } else if (isTransactionsOpen) {
+
+                    TransactionsScreen(
+                        userId = currentUserId ?: "",
+                        onBackClick = {
+                            isTransactionsOpen = false
+                        }
+                    )
                 } else if (isTransferOpen) {
 
                     // Display the Transfer Money screen.
@@ -189,6 +202,7 @@ class MainActivity : ComponentActivity() {
                             isAboutOpen = false
                             isAccountsOpen = false
                             isTransferOpen = false
+                            isTransactionsOpen = false
                         },
 
                         onSettingsClick = {
@@ -201,6 +215,10 @@ class MainActivity : ComponentActivity() {
 
                         onTransferClick = {
                             isTransferOpen = true
+                        },
+
+                        onTransactionsClick = {
+                            isTransactionsOpen = true
                         }
                     )
                 }
@@ -492,7 +510,8 @@ fun HomeScreen(
     onLogout: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onAccountsClick: () -> Unit = {},
-    onTransferClick: () -> Unit = {}
+    onTransferClick: () -> Unit = {},
+    onTransactionsClick: () -> Unit = {}
 ) {
 
 
@@ -566,9 +585,8 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Button(
-                onClick = {
-                    // TODO: Handle Transactions
-                },
+                // Open the Transactions page through the parent callback.
+                onClick = onTransactionsClick,
 
                 modifier = Modifier.fillMaxWidth()
 
