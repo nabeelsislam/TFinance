@@ -105,6 +105,11 @@ class MainActivity : ComponentActivity() {
 
 
 
+                // Tracks whether the Nearby Banks screen is open.
+                var isNearbyBanksOpen by remember {
+                    mutableStateOf(false)
+                }
+
                 if (!isLoggedIn) {
 
                     // Show the login screen.
@@ -182,7 +187,14 @@ class MainActivity : ComponentActivity() {
                             isTransferOpen = false
                         }
                     )
-                }else {
+                } else if (isNearbyBanksOpen) {
+
+                    NearbyBanksScreen(
+                        onBack = {
+                            isNearbyBanksOpen = false
+                        }
+                    )
+                } else {
 
                     // Display the Home screen.
                     HomeScreen(
@@ -203,6 +215,7 @@ class MainActivity : ComponentActivity() {
                             isAccountsOpen = false
                             isTransferOpen = false
                             isTransactionsOpen = false
+                            isNearbyBanksOpen = false
                         },
 
                         onSettingsClick = {
@@ -219,6 +232,10 @@ class MainActivity : ComponentActivity() {
 
                         onTransactionsClick = {
                             isTransactionsOpen = true
+                        },
+
+                        onNearbyBanksClick = {
+                            isNearbyBanksOpen = true
                         }
                     )
                 }
@@ -511,7 +528,8 @@ fun HomeScreen(
     onSettingsClick: () -> Unit = {},
     onAccountsClick: () -> Unit = {},
     onTransferClick: () -> Unit = {},
-    onTransactionsClick: () -> Unit = {}
+    onTransactionsClick: () -> Unit = {},
+    onNearbyBanksClick: () -> Unit = {}
 ) {
 
 
@@ -621,6 +639,16 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Nearby Banks button.
+            Button(
+                onClick = onNearbyBanksClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Nearby Banks & ATMs")
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             // Settings button.
             Button(
                 onClick = onSettingsClick,
@@ -633,3 +661,4 @@ fun HomeScreen(
         }
     }
 }
+
